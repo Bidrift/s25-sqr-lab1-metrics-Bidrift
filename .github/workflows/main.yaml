@@ -1,3 +1,45 @@
 name: lab-metrics
 
 # add your pipline description below
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install Poetry
+      run: pip install poetry
+
+    
+    - name: Install dependencies
+      run: poetry install --no-root
+
+    - name: Run flake8
+      run: poetry run flake8 .
+
+    - name: Check cyclomatic complexity with radon
+      run: |
+        echo "Running radon cyclomatic complexity check on app/hangman.py..."
+          output=$(poetry run radon cc -s app/hangman.py)
+          echo "$output"
+          complexities=$(echo "$output" | grep -oP '\(\K[0-9]+(?=\))')
+          echo "Extracted complexities: $complexities"
+          for comp in $complexities; do
+            if [ "$comp" -gt 10 ]; then
+              echo "Error: Found a function with complexity $comp (should be <= 10)."
+              exit 1
+            fi
+          done
